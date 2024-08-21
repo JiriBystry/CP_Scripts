@@ -1,0 +1,5 @@
+mkdir C:\tmp
+powershell -command "Invoke-WebRequest -Uri https://raw.githubusercontent.com/JiriBystry/Zoom_Uninstall/main/uninstall_app.ps1" -OutFile C:\tmp\foxit_uninstall.ps1"
+powershell -executionpolicy bypass -File "C:\tmp\foxit_uninstall.ps1" -displayName "Foxit PDF Reader"
+timeout /t 2
+rmdir /s /q C:\tmp
