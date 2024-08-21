@@ -1,0 +1,3 @@
+@ECHO OFF
+cd "C:\Program Files\OCS Inventory Agent\"
+uninst.exe /S
