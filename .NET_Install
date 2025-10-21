@@ -1,0 +1,5 @@
+mkdir C:\tmp
+powershell -command "Invoke-WebRequest -Uri https://dot.net/v1/dotnet-install.ps1" -OutFile C:\tmp\dotnet-install.ps1"
+powershell -executionpolicy bypass -File "C:\tmp\dotnet-install.ps1" -Runtime windowsdesktop
+timeout /t 2
+rmdir /s /q C:\tmp
