@@ -1,0 +1,41 @@
+# install-watchguard-ssl.ps1
+# WatchGuard Mobile VPN with SSL – plošná instalace / upgrade
+
+$ErrorActionPreference = "Stop"
+
+$DownloadUrl = "https://cdn.watchguard.com/SoftwareCenter/Files/MUVPN_SSL/12_11_5/WG-MVPN-SSL_12_11_5.exe"
+$TempDir    = "C:\tmp"
+$Installer  = Join-Path $TempDir "WG-MVPN-SSL_12_11_5.exe"
+
+# vytvoøení temp adresáøe
+if (-not (Test-Path $TempDir)) {
+    New-Item -Path $TempDir -ItemType Directory | Out-Null
+}
+
+Write-Output "Stahuji WatchGuard SSL VPN klienta..."
+Invoke-WebRequest -Uri $DownloadUrl -OutFile $Installer -UseBasicParsing
+
+if (-not (Test-Path $Installer)) {
+    Write-Error "Instalátor nebyl stažen."
+    exit 1
+}
+
+Write-Output "Spouštím instalaci / upgrade WatchGuard SSL VPN..."
+
+$arguments = "/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
+
+$process = Start-Process -FilePath $Installer -ArgumentList $arguments -PassThru
+
+# timeout 15 minut
+if (-not $process.WaitForExit(900000)) {
+    Write-Error "Instalátor se zasekl – ukonèuji proces."
+    $process.Kill()
+    exit 1
+}
+
+Write-Output "Instalace dokonèena, exit code: $($process.ExitCode)"
+
+# úklid
+Remove-Item $Installer -Force -ErrorAction SilentlyContinue
+
+exit $process.ExitCode
