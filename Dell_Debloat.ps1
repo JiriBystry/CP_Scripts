@@ -1,44 +1,44 @@
-# Odinstaluje vše "Dell*" kromì "Dell Command | Update"
-
 $paths = @(
-  "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
-  "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
-  "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*"
+    "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+    "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+    "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*"
 )
 
-$apps = foreach ($p in $paths) {
-  Get-ItemProperty $p -ErrorAction SilentlyContinue
-}
+$apps = Get-ItemProperty $paths -ErrorAction SilentlyContinue
 
-# vše co obsahuje Dell, ale vynechat Dell Command | Update
+# Definujeme seznam klÃ­ÄovÃ½ch slov, kterÃ¡ chceme zachovat (whitelist)
+$excludedNames = @(
+    "Dell Command | Update*",
+    "*Touchpad*",
+    "*Pointing Device*"
+)
+
 $targets = $apps | Where-Object {
-  $_.DisplayName -and
-  $_.DisplayName -like "*Dell*" -and
-  $_.DisplayName -ne "Dell Command | Update"
+    $displayName = $_.DisplayName
+    
+    # PodmÃ­nka: MusÃ­ obsahovat "Dell"
+    $displayName -like "*Dell*" -and 
+    # A ZÃROVEÅ‡ nesmÃ­ odpovÃ­dat Å¾Ã¡dnÃ© poloÅ¾ce v naÅ¡em whitelistu
+    -not ($excludedNames | Where-Object { $displayName -like $_ })
 }
 
-$targets | ForEach-Object {
-  Write-Host "Odinstaluji: $($_.DisplayName)"
+foreach ($app in $targets) {
+    Write-Host "Odeberu: $($app.DisplayName)" -ForegroundColor Yellow
 
-  # 1) Preferuj QuietUninstallString (když existuje)
-  if ($_.QuietUninstallString) {
-    $cmd = $_.QuietUninstallString
-  }
-  elseif ($_.UninstallString) {
-    $cmd = $_.UninstallString
-  }
-  else {
-    Write-Host "  -> Nelze odinstalovat (chybí UninstallString)"
-    return
-  }
+    $cmd = if ($app.QuietUninstallString) { $app.QuietUninstallString } else { $app.UninstallString }
 
-  # 2) MSI: pøepnout /I -> /X a vynutit tichý režim
-  if ($cmd -match "(?i)msiexec") {
-    $cmd = $cmd -replace "(?i)/I", "/X"
-    if ($cmd -notmatch "(?i)/quiet|/qn") { $cmd += " /qn" }
-    if ($cmd -notmatch "(?i)/norestart") { $cmd += " /norestart" }
-  }
+    if (-not $cmd) { continue }
 
-  # 3) Spustit (pozn.: pokud to není MSI a nemá silent parametry, mùže vyskoèit GUI)
-  Start-Process "cmd.exe" -ArgumentList "/c $cmd" -Wait -NoNewWindow
+    if ($cmd -match "msiexec") {
+        $cmd = $cmd -ireplace "/I", "/X"
+        if ($cmd -notmatch "/qn|/quiet") { $cmd += " /qn" }
+        if ($cmd -notmatch "/norestart") { $cmd += " /norestart" }
+        
+        $parts = $cmd -split " ", 2
+        Start-Process $parts[0] -ArgumentList $parts[1] -Wait
+    } 
+    else {
+        # U EXE souborÅ¯ pÅ™idÃ¡vÃ¡me -NoNewWindow, aby proces bÄ›Å¾el v aktuÃ¡lnÃ­ konzoli
+        Start-Process "cmd.exe" -ArgumentList "/c $cmd" -Wait -NoNewWindow
+    }
 }
